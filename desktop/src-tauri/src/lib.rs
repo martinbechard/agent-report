@@ -1360,7 +1360,7 @@ fn worker_supervisor_config(
     app: &AppHandle,
     roots: Vec<PathBuf>,
 ) -> Result<WorkerSupervisorConfig, NativeReportError> {
-    let pricing = include_bytes!("../../../../../docs/reference/openai-model-pricing.json");
+    let pricing = include_bytes!("../../../docs/reference/openai-model-pricing.json");
     let formatters = include_bytes!("../../../tool-formatters.json");
     let (pricing_version, pricing_digest) = configuration_resource(pricing, "_updated_at")?;
     let (formatter_version, formatter_digest) = configuration_resource(formatters, "version")?;
