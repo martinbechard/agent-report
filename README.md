@@ -1,5 +1,7 @@
 # Agent Report
 
+Standalone development continues here from Agent Runner’s CLI 1.1.5. The extracted Git history retains the reporting tool’s commits.
+
 `` holds cross-tool reporting utilities for this repository.
 
 ## Standalone Agent Report CLI
