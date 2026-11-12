@@ -27,5 +27,5 @@ include = ["agent_report_cli*"]
     "../scripts/run-timeline.py",
     "../scripts/token_ledger.py",
     "../tool-formatters.json",
-    "../../../docs/reference/openai-model-pricing.json",
+    "../docs/reference/openai-model-pricing.json",
 ]

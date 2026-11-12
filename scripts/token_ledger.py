@@ -21,7 +21,7 @@ from typing import Any, Sequence
 
 NUMBER = re.compile(r"^\$?[+-]?(?:\d[\d,]*)(?:\.\d+)?$")
 _CHECKOUT_PRICING_FILE = (
-    Path(__file__).resolve().parents[3]
+    Path(__file__).resolve().parents[1]
     / "docs"
     / "reference"
     / "openai-model-pricing.json"

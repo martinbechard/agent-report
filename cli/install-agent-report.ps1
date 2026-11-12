@@ -13,7 +13,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$repository = 'martinbechard/agent-runner'
+$repository = 'martinbechard/agent-report'
 $tagPrefix = 'agent-report-cli-v'
 $headers = @{ 'User-Agent' = 'agent-report-cli-installer' }
 

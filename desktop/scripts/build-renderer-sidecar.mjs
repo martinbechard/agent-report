@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const desktopRoot = resolve(scriptDirectory, "..");
 const reportRoot = resolve(desktopRoot, "..");
-const repositoryRoot = resolve(reportRoot, "../..");
+const repositoryRoot = reportRoot;
 const tauriRoot = join(desktopRoot, "src-tauri");
 const binariesRoot = join(tauriRoot, "binaries");
 const pyinstallerRoot = join(reportRoot, "target", "pyinstaller");

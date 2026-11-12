@@ -1,6 +1,6 @@
-# report
+# Agent Report
 
-`tools/report/` holds cross-tool reporting utilities for this repository.
+`` holds cross-tool reporting utilities for this repository.
 
 ## Standalone Agent Report CLI
 
@@ -9,7 +9,7 @@ Tauri application, desktop web assets, or a desktop install extra. Each wheel
 includes the Python report renderer, pricing data, and the native Rust
 discovery engine for one operating system. Python 3.11 or newer is required.
 
-Download the wheel for your computer from the matching GitHub release, then
+Test builds are available from the [Actions page](https://github.com/martinbechard/agent-report/actions/workflows/release-agent-report.yml). Open the latest successful manual run and download the wheel artifact for your computer. Extract the ZIP, then
 install it from the download directory.
 
 On Apple Silicon macOS:
@@ -223,7 +223,7 @@ source checkout:
 
 ```bash
 cargo build \
-  --manifest-path tools/report/Cargo.toml \
+  --manifest-path Cargo.toml \
   --release \
   -p agent-report-engine
 ```
@@ -231,7 +231,7 @@ cargo build \
 Run the timeline tool directly from the checkout:
 
 ```bash
-python tools/report/scripts/run-timeline.py <path> [--output report.html]
+python scripts/run-timeline.py <path> [--output report.html]
 ```
 
 Install the wheel attached to the GitHub release and run the same tool as an
@@ -240,14 +240,14 @@ the required native engine:
 
 ```bash
 python -m pip install \
-  https://github.com/martinbechard/agent-runner/releases/download/agent-report-cli-v1.1.5/agent_report_cli-1.1.5-py3-none-macosx_11_0_arm64.whl
+  https://github.com/martinbechard/agent-report/releases/download/agent-report-cli-v1.1.5/agent_report_cli-1.1.5-py3-none-macosx_11_0_arm64.whl
 agent-report <path> --output report.html
 ```
 
 Build a platform wheel locally with:
 
 ```bash
-python -m build --wheel --outdir tools/report/dist tools/report/cli
+python -m build --wheel --outdir dist cli
 ```
 
 The wheel build fails if Rust cannot build `agent-report-engine`; it never
@@ -257,7 +257,7 @@ emits a Python-only package with different discovery behavior.
 
 Agent Report CLI wheels are published only through GitHub Releases. Pushing an
 `agent-report-cli-vVERSION` tag runs `.github/workflows/release-agent-report.yml`.
-The tag must exactly match the version in `tools/report/cli/pyproject.toml`.
+The tag must exactly match the version in `cli/pyproject.toml`.
 
 The workflow builds and tests one platform wheel on each supported target:
 
@@ -395,7 +395,7 @@ Matched tool calls show a concise formatted summary and a collapsed `raw`
 disclosure containing the unformatted, sanitized argument summary:
 
 ```bash
-python tools/report/scripts/run-timeline.py \
+python scripts/run-timeline.py \
   --codex-thread <root-thread-id> \
   --sessions-root ~/.codex/sessions \
   --live \
@@ -444,7 +444,7 @@ Repeat `--sessions-root` when the connected graph spans the active and archived
 stores:
 
 ```bash
-python tools/report/scripts/run-timeline.py \
+python scripts/run-timeline.py \
   --codex-thread <coordinator-thread-id> \
   --sessions-root ~/.codex/sessions \
   --sessions-root ~/.codex/archived_sessions \
@@ -611,7 +611,7 @@ the generated config with a run when an agent creates run-specific rules after
 analyzing its sanitized argument summaries:
 
 ```bash
-python tools/report/scripts/run-timeline.py \
+python scripts/run-timeline.py \
   --codex-thread <root-thread-id> \
   --sessions-root ~/.codex/sessions \
   --live \
@@ -626,7 +626,7 @@ redactor and size boundary.
 Report a Junie session directly from its durable event stream:
 
 ```bash
-python tools/report/scripts/run-timeline.py \
+python scripts/run-timeline.py \
   ~/.junie/sessions/session-YYMMDD-HHMMSS-ID \
   --output junie-run.html
 ```
@@ -661,7 +661,7 @@ Seal a stable completed hierarchy. Sealing writes HTML plus normalized JSON,
 turn CSV, work-unit CSV, and Markdown files using the output stem:
 
 ```bash
-python tools/report/scripts/run-timeline.py \
+python scripts/run-timeline.py \
   --codex-thread <root-thread-id> \
   --sessions-root ~/.codex/sessions \
   --seal \
@@ -713,7 +713,7 @@ usage without charge telemetry.
 Run its tests:
 
 ```bash
-pytest -q tools/report/tests/test_run_timeline.py
+pytest -q tests/test_run_timeline.py
 ```
 
 ## Token summary
@@ -891,14 +891,14 @@ When supplied, `--scan-directory`, `--from`, `--to`, `--csv`, `--html` (or
 Run the complete interface against real local Codex stores in the browser:
 
 ```bash
-cd tools/report/desktop
+cd desktop
 pnpm dev
 ```
 
 Run it with deterministic browser fixtures instead:
 
 ```bash
-cd tools/report/desktop
+cd desktop
 pnpm dev:fixture
 ```
 

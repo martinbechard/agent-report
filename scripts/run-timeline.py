@@ -69,7 +69,7 @@ def _current_worker_id() -> str:
 
 POPUP_TRUNCATE_CHARS = 20_000_000  # 20 MB
 MIN_BAR_PCT = 0.5
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(__file__).resolve().parents[1]
 _CHECKOUT_PRICING_FILE = REPO_ROOT / "docs" / "reference" / "openai-model-pricing.json"
 _INSTALLED_DATA_ROOT = Path(__file__).resolve().parent
 PRICING_FILE = (
@@ -77,7 +77,7 @@ PRICING_FILE = (
     if _CHECKOUT_PRICING_FILE.is_file()
     else _INSTALLED_DATA_ROOT / "openai-model-pricing.json"
 )
-_CHECKOUT_FORMATTER_CONFIG = REPO_ROOT / "tools" / "report" / "tool-formatters.json"
+_CHECKOUT_FORMATTER_CONFIG = REPO_ROOT / "tool-formatters.json"
 DEFAULT_TOOL_FORMATTER_CONFIG = (
     _CHECKOUT_FORMATTER_CONFIG
     if _CHECKOUT_FORMATTER_CONFIG.is_file()
@@ -3423,8 +3423,8 @@ def _native_discovery_engine_path() -> Path:
             f"{configured_path}"
         )
     candidates = [
-        REPO_ROOT / "tools" / "report" / "target" / "release" / executable_name,
-        REPO_ROOT / "tools" / "report" / "target" / "debug" / executable_name,
+        REPO_ROOT / "target" / "release" / executable_name,
+        REPO_ROOT / "target" / "debug" / executable_name,
         Path(sys.executable).resolve().parent / executable_name,
     ]
     on_path = shutil.which(executable_name)

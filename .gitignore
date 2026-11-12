@@ -1,0 +1,66 @@
+# Virtual environments
+.venv/
+
+# Python build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Rust build artifacts
+target/
+
+# Desktop frontend build artifacts
+node_modules/
+.vite/
+tools/report/desktop/src-tauri/gen/
+tools/report/desktop/src-tauri/binaries/
+
+# Pytest
+.pytest_cache/
+
+# Prompt-runner outputs
+runs/
+.prompt-runner/
+
+# Local tool and scratch state
+.codex/*
+!.codex/agents/
+.codex/agents/*
+!.codex/agents/dev-ui-designer.toml
+!.codex/skills/
+.codex/skills/*
+!.codex/skills/frontend-design/
+!.codex/skills/frontend-design/**
+!.codex/skills/frontend-production-shadcn/
+!.codex/skills/frontend-production-shadcn/**
+!.codex/skills/ui-ux-pro-max/
+!.codex/skills/ui-ux-pro-max/**
+!.codex/skills/extract-design-md/
+!.codex/skills/extract-design-md/**
+!.codex/skills/design-system/
+!.codex/skills/design-system/**
+!.codex/skills/web-design-guidelines/
+!.codex/skills/web-design-guidelines/**
+tmp/
+relative/
+.archive/
+*.log
+.claude/
+work/
+work/**/.git
+work/pr-021-run/
+
+# Local Agent Report verification outputs (may embed raw task logs)
+/htmlagents.html
+/htmlagents-threads/
+htmltest.html
+htmltest-threads/
+test.csv
+
+# macOS
+.DS_Store
+
+desktop/src-tauri/gen/
+desktop/src-tauri/binaries/
