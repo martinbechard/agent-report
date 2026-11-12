@@ -14061,7 +14061,7 @@ def _parse_prompt_module_dir(
             steps.append(step)
 
     _backfill_prompts_from_history(module_dir, steps)
-    _apply_codex_model_fallback(steps, module_dir.parent.parent)
+    _apply_codex_model_fallback(steps, module_dir.parent)
     return steps
 
 
