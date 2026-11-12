@@ -1388,7 +1388,7 @@ fn worker_supervisor_config(
         max_stderr_bytes: 256 * 1024,
         expected_package_version: env!("CARGO_PKG_VERSION").to_owned(),
         service_configuration: ServiceConfiguration {
-            parser_version: "1.20.0".to_owned(),
+            parser_version: "1.20.1".to_owned(),
             pricing_version,
             pricing_digest,
             formatter_version,
@@ -2931,7 +2931,7 @@ mod tests {
             "revision_id": "revision-1",
             "scope": {"root_thread_id":"root","include_children":true,"include_collaborators":false},
             "source_revision": "source-revision-1",
-            "parser_version": "1.20.0",
+            "parser_version": "1.20.1",
             "pricing_version": "2026-07-14",
             "pricing_digest": "1111111111111111111111111111111111111111111111111111111111111111",
             "formatter_version": "1",

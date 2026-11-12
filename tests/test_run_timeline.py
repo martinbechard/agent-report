@@ -591,7 +591,7 @@ def test_native_codex_reports_mcp_calls_and_skill_load_sources(tmp_path):
     thread = run.threads[0]
     turn = thread.turns[0]
 
-    assert run.parser_version == "1.20.0"
+    assert run.parser_version == "1.20.1"
     assert thread.skills_used == ["python", "structured-design"]
     assert thread.mcp_skills_loaded == ["python", "structured-design"]
     assert thread.bash_skills_loaded == ["python"]
@@ -662,6 +662,44 @@ def test_native_codex_reports_mcp_calls_and_skill_load_sources(tmp_path):
     assert "bash-skill-6" in clamped_overlay
     assert "- MCP calls: 3" in markdown
     assert "PRIVATE" not in html
+
+
+@pytest.mark.parametrize("field", ["apiKey", "accessToken", "OPENAI_API_KEY", "providerAPIKey"])
+def test_credentials_are_redacted_in_tool_summaries_and_details(field):
+    module = _load_module()
+    data = {"nested": [{field: "marker-one", "cmd": "OPENAI_API_KEY=marker-two"}]}
+    payload = {"arguments": json.dumps(data)}
+    for rendered in (
+        module._tool_argument_summary(payload),
+        module._tool_argument_payload_content(payload),
+        module._tool_result_content(data),
+        module._tool_result_content(json.dumps(data)),
+    ):
+        cleaned = json.loads(rendered)["nested"][0]
+        assert cleaned == {field: "[redacted]", "cmd": "OPENAI_API_KEY=[redacted]"}
+    headers = {"stdout": ["Authorization: Bearer marker-three", "completed"]}
+    cleaned = json.loads(module._tool_result_content(headers))
+    assert "marker-three" not in cleaned["stdout"][0]
+    assert cleaned["stdout"][1] == "completed"
+
+
+def test_rollout_export_redacts_nested_tool_credentials(tmp_path):
+    module = _load_module()
+    records = []
+    for line in (CODEX_ROLLOUT_FIXTURES / "root.jsonl").read_text().splitlines():
+        record = json.loads(line)
+        payload = record["payload"]
+        if payload.get("call_id") == "call-1":
+            if payload["type"] == "custom_tool_call":
+                payload["input"] = json.dumps({"apiKey": "marker-argument", "label": "example-call"})
+            else:
+                payload["output"] = {"log": ["OPENAI_API_KEY=marker-result", "example-completed"]}
+        records.append(json.dumps(record))
+    (tmp_path / "root.jsonl").write_text("\n".join(records) + "\n")
+    run = module.build_codex_rollout_run("root-thread", tmp_path)
+    html = module.render_codex_rollout_html(run)
+    assert "example-call" in html and "example-completed" in html
+    assert "marker-argument" not in html and "marker-result" not in html
 
 
 def test_native_codex_tool_argument_summary_redacts_sensitive_content():
@@ -1025,7 +1063,7 @@ def test_native_junie_session_reports_agents_usage_tools_and_redacted_results(tm
     assert run.runtime == "Junie"
     assert run.state == "complete"
     assert run.format_version == module.JUNIE_SESSION_FORMAT
-    assert run.parser_version == "1.7.0"
+    assert run.parser_version == "1.7.1"
     assert len(run.threads) == 2
     assert sum(len(thread.turns) for thread in run.threads) == 2
     assert sum(len(thread.responses) for thread in run.threads) == 2
@@ -1255,7 +1293,7 @@ def test_native_junie_ide_chain_reports_finished_tasks_without_cumulative_double
     assert run.root_thread_id == "test-chain"
     assert run.state == "complete"
     assert run.format_version == module.JUNIE_SESSION_FORMAT
-    assert run.parser_version == "1.7.0"
+    assert run.parser_version == "1.7.1"
     assert len(run.threads) == 1
     assert len(run.threads[0].turns) == 2
     assert len(run.threads[0].responses) == 2
@@ -2271,7 +2309,7 @@ def test_native_codex_retains_redacted_lifecycle_content_and_exact_tool_model():
     run = module.build_codex_rollout_run("root-thread", CODEX_ROLLOUT_FIXTURES)
     root = run.threads[0]
 
-    assert run.parser_version == "1.20.0"
+    assert run.parser_version == "1.20.1"
     assert [activity.activity_type for activity in root.activities] == [
         "input",
         "reasoning",
@@ -6246,6 +6284,26 @@ def test_render_html_shows_selector_and_selected_variant_for_selection_fork(tmp_
     assert "toggleGroup('fork-01-variant-a'" in html
     assert 'data-groups="fork-01"' in html
     assert 'data-groups="fork-01 fork-01-variant-a"' in html
+
+
+def test_report_renders_run_metadata_as_literal_text(tmp_path):
+    module = _load_module()
+    module_dir = tmp_path / "choose-ui"
+    _write_selection_module_run(module_dir)
+    doc = module.load_report_document(module_dir)
+    fork = doc.fork_sections[0]
+    doc.run_title = "<b>run</b>"
+    doc.workspace = tmp_path / "<b>workspace"
+    fork.fork_title = "<b>fork</b>"
+    fork.selected_variant = "<b>choice</b>"
+    fork.selector_rationale = "<b>reason</b>"
+    fork.variant_titles["variant-a"] = "<b>variant</b>"
+    fork.selector_steps[0].name = "<b>step</b>"
+
+    html = module.render_html(doc)
+    for field in ("run", "workspace", "fork", "choice", "reason", "variant", "step"):
+        assert f"&lt;b&gt;{field}" in html
+        assert f"<b>{field}" not in html
 
 
 def test_render_html_includes_elapsed_start_and_links_columns(tmp_path):

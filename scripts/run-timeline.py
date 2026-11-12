@@ -90,7 +90,7 @@ CODEX_CREDIT_RATE_KEYS = (
     "codex_credits_output_per_million",
 )
 CODEX_ROLLOUT_FORMAT = "codex-rollout-metrics/v1"
-CODEX_ROLLOUT_PARSER_VERSION = "1.20.0"
+CODEX_ROLLOUT_PARSER_VERSION = "1.20.1"
 NATIVE_DISCOVERY_PROTOCOL_VERSION = 1
 AGENT_EXECUTION_METRICS_TITLE = "Agent Execution Metrics"
 COPYRIGHT_NOTICE = "© 2026 Martin.Bechard@DevConsult.ca · MIT License"
@@ -101,7 +101,7 @@ TOOL_ARGUMENT_CLAMP_CHARS = 320
 TOOL_ARGUMENT_RAW_CHARS = 20_000
 TOOL_RESULT_RAW_CHARS = 20_000
 JUNIE_SESSION_FORMAT = "junie-session-metrics/v1"
-JUNIE_SESSION_PARSER_VERSION = "1.7.0"
+JUNIE_SESSION_PARSER_VERSION = "1.7.1"
 
 
 def _with_copyright_footer(document: str) -> str:
@@ -1274,14 +1274,9 @@ def _extract_tool_wall_time_ms(output: object) -> int | None:
 
 
 def _is_sensitive_argument_key(key: str) -> bool:
-    normalized = key.strip().lstrip("-").lower().replace("-", "_")
-    if normalized in {
-        "api_key",
-        "client_secret",
-        "private_key",
-        "access_token",
-        "refresh_token",
-    }:
+    words = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", key.strip().lstrip("-"))
+    normalized = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", words).lower().replace("-", "_")
+    if normalized.endswith(("_api_key", "_private_key")) or normalized in {"api_key", "private_key"}:
         return True
     return any(
         part in {
@@ -1306,7 +1301,7 @@ def _argument_content_size(value: object) -> int:
 
 def _sanitize_structured_argument(key: str, value: object) -> object:
     normalized_key = key.strip().lower().replace("-", "_")
-    if _is_sensitive_argument_key(normalized_key):
+    if _is_sensitive_argument_key(key):
         return "[redacted]"
     if normalized_key in CODEX_CONTENT_ARGUMENT_KEYS:
         return f"[{_argument_content_size(value):,} chars]"
@@ -1317,6 +1312,8 @@ def _sanitize_structured_argument(key: str, value: object) -> object:
         }
     if isinstance(value, list):
         return [_sanitize_structured_argument("", child) for child in value]
+    if isinstance(value, str):
+        return _redact_unstructured_text(value)
     return value
 
 
@@ -1335,6 +1332,11 @@ def _redact_unstructured_text(value: str) -> str:
             return match.group(0)
         return f"{key}{match.group('separator')}[redacted]"
 
+    value = re.sub(
+        r"(?i)(\bauthorization[ \t]*[:=][ \t]*(?:bearer|basic)[ \t]+)[^\s,;\"']+",
+        r"\1[redacted]",
+        value,
+    )
     summary = re.sub(
         r"(?P<key>[A-Za-z_][A-Za-z0-9_-]*)(?P<separator>\s*=\s*)"
         r"(?P<value>\"[^\"]*\"|'[^']*'|[^\s]+)",
@@ -1351,7 +1353,7 @@ def _redact_unstructured_text(value: str) -> str:
         return f"{key}{match.group('separator')}{quote}[redacted]{quote}"
 
     summary = re.sub(
-        r"(?P<key>[A-Za-z_][A-Za-z0-9_-]*)(?P<separator>\s*:\s*)"
+        r"(?P<key>[A-Za-z_][A-Za-z0-9_-]*)(?P<separator>[\"']?\s*:\s*)"
         r"(?P<value>\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'|[^\s,}]+)",
         redact_mapping_value,
         summary,
@@ -1379,7 +1381,10 @@ def _sanitize_unstructured_argument(value: str) -> str:
 def _tool_argument_content(value: str) -> str:
     """Return bounded, secret-redacted source arguments for local disclosure."""
 
-    content = _redact_unstructured_text(value)
+    return _bounded_argument_content(_redact_unstructured_text(value))
+
+
+def _bounded_argument_content(content: str) -> str:
     if len(content) <= TOOL_ARGUMENT_RAW_CHARS:
         return content
     omitted = len(content) - TOOL_ARGUMENT_RAW_CHARS
@@ -1407,25 +1412,8 @@ def _tool_argument_payload_content(payload: dict[str, object]) -> str:
             ensure_ascii=False,
             indent=2,
         )
-    return _tool_argument_content(str(value))
-
-
-def _sanitize_result_value(value: object) -> object:
-    if isinstance(value, dict):
-        sanitized: dict[str, object] = {}
-        for key, child in value.items():
-            rendered_key = str(key)
-            normalized_key = rendered_key.strip().lower().replace("-", "_")
-            if _is_sensitive_argument_key(normalized_key):
-                sanitized[rendered_key] = "[redacted]"
-            elif normalized_key in CODEX_CONTENT_ARGUMENT_KEYS:
-                sanitized[rendered_key] = f"[{_argument_content_size(child):,} chars]"
-            else:
-                sanitized[rendered_key] = _sanitize_result_value(child)
-        return sanitized
-    if isinstance(value, list):
-        return [_sanitize_result_value(child) for child in value]
-    return value
+        return _bounded_argument_content(value)
+    return _tool_argument_content(str(structured))
 
 
 def _tool_result_content(value: object) -> str:
@@ -1439,13 +1427,13 @@ def _tool_result_content(value: object) -> str:
             content = _redact_unstructured_text(value)
         else:
             content = json.dumps(
-                _sanitize_result_value(structured),
+                _sanitize_structured_argument("", structured),
                 ensure_ascii=False,
                 indent=2,
             )
     elif isinstance(value, (dict, list)):
         content = json.dumps(
-            _sanitize_result_value(value),
+            _sanitize_structured_argument("", value),
             ensure_ascii=False,
             indent=2,
         )
@@ -10254,7 +10242,7 @@ def render_codex_rollout_html(
     combined_nav_links = [*(nav_links or []), *(page_action_links or [])]
     if combined_nav_links:
         nav_html = '<nav class="report-nav" aria-label="Breadcrumb">' + " › ".join(
-            f'<a href="{_escape_html(href)}">{_escape_html(label)}</a>'
+            f'<a href="{_escape_html_attribute(href)}">{_escape_html(label)}</a>'
             for label, href in combined_nav_links
         ) + "</nav>"
     turn_count = sum(len(thread.turns) for thread in run.threads)
@@ -10955,7 +10943,7 @@ def render_codex_rollout_html(
         f'<section id="model-pricing" class="model-pricing-overlay" role="dialog" aria-modal="true" aria-labelledby="model-pricing-title">'
         '<div class="model-pricing-panel">'
         '<div class="model-pricing-header"><h2 id="model-pricing-title">Model pricing</h2><span class="execution-note">Close this tab to return to the report.</span></div>'
-        f'<p class="execution-note">Rates updated {_escape_html(pricing_version)} and shown per 1M tokens in input / cached input / output order. API USD estimates are comparison values, not subscription invoices. Long-context and fast-mode multipliers are not inferred from aggregate telemetry. Sources: <a href="{_escape_html(openai_source)}">OpenAI API</a> and <a href="{_escape_html(anthropic_source)}">Anthropic API</a>.</p>'
+        f'<p class="execution-note">Rates updated {_escape_html(pricing_version)} and shown per 1M tokens in input / cached input / output order. API USD estimates are comparison values, not subscription invoices. Long-context and fast-mode multipliers are not inferred from aggregate telemetry. Sources: <a href="{_escape_html_attribute(openai_source)}">OpenAI API</a> and <a href="{_escape_html_attribute(anthropic_source)}">Anthropic API</a>.</p>'
         '<div class="table-scroll"><table class="pricing-table"><thead><tr><th>Provider</th><th>Model</th><th>API USD / 1M tokens<br>input / cached / output</th><th>Note</th></tr></thead>'
         f"<tbody>{''.join(pricing_rows)}</tbody></table></div></div></section>"
         if is_codex
@@ -16289,7 +16277,7 @@ def _render_log_structured(
                 f'<div class="log-system">'
                 f'<span class="log-type">INIT</span> '
                 f'model=<strong>{_escape_html(model)}</strong> '
-                f'session={sid} '
+                f'session={_escape_html(str(sid))} '
                 f'cwd={_escape_html(str(cwd)[-40:])} '
                 f'tools={len(tools)}'
                 f'</div>'
@@ -16400,7 +16388,7 @@ def _render_log_structured(
                         f'{tool_label} '
                         f'<span class="log-dim">{len(content):,}</span> '
                         f'{preview}{"…" if len(content) > 150 else ""}'
-                        f'{"  <span class=log-ts>" + ts[-12:] + "</span>" if ts else ""}'
+                        f'{"  <span class=log-ts>" + _escape_html(ts[-12:]) + "</span>" if ts else ""}'
                         f'</div>'
                     )
                 elif bt == "text":
@@ -16435,9 +16423,9 @@ def _render_log_structured(
             items.append(
                 f'<div class="{cls}">'
                 f'<span class="log-type">{"ERROR" if is_err else "DONE"}</span> '
-                f'{dur:.0f}s | ${cost:.2f} | {turns} turns | '
+                f'{dur:.0f}s | ${cost:.2f} | {_escape_html(str(turns))} turns | '
                 f'out={out_tok:,} | cache-read={cache_read:,} | '
-                f'cache-create={cache_create:,} | stop={stop}'
+                f'cache-create={cache_create:,} | stop={_escape_html(str(stop))}'
                 f'{"<br>Errors: " + _escape_html("; ".join(errors)) if errors else ""}'
                 f'</div>'
             )
@@ -16682,7 +16670,7 @@ def _render_detail(
     fresh_input_tokens = _fresh_input_tokens(detail)
     parts.append(
         f'<div class="detail-summary">'
-        f'{model_abbr}'
+        f'{_escape_html(model_abbr)}'
         f' | wall: {_fmt_duration(wall_s) if wall_s > 0 else "—"}'
         f' | API: {_fmt_duration(api_s) if api_s > 0 else "—"}'
         f' | overhead: {f"{overhead_s:.1f}s" if api_s > 0 and wall_s > 0 else "—"}'
@@ -16773,6 +16761,7 @@ def _render_detail(
                     label = f'{tc.name}({filename} {tc.input_size:,}→/→{tc.result_size:,})'
                 else:
                     label = f'{tc.name}({tc.input_size:,}→/→{tc.result_size:,})'
+                label = _escape_html(label)
                 # Add popup link if there's meaningful content
                 has_content = (tc.input_json and tc.input_size > 10) or tc.result_content
                 if has_content and step_id and popups is not None:
@@ -16811,7 +16800,7 @@ def _render_detail(
                     popups.append(
                         f'<div id="{popup_id}" class="popup">'
                         f'<div class="popup-header">'
-                        f'<strong>{tc.name}: {_escape_html(short_path)}</strong>'
+                        f'<strong>{_escape_html(tc.name)}: {_escape_html(short_path)}</strong>'
                         f'{_popup_toolbar(dual_uid)}'
                         f'<a href="#" onclick="hidePopup(\'{popup_id}\');return false">close</a>'
                         f'</div>'
@@ -16945,10 +16934,11 @@ def _render_steps_rows(
         has_prompt = step.detail and step.detail.prompt_text
         has_output = step.detail and step.detail.output_text
         has_log = step.log_path and step.log_path.exists() and step.log_path.stat().st_size > 0
+        step_name = _escape_html(step.name)
         name_html = (
-            f'<span class="step-toggle" id="{toggle_id}" aria-hidden="true">▸</span>{step.name}'
+            f'<span class="step-toggle" id="{toggle_id}" aria-hidden="true">▸</span>{step_name}'
             if has_detail
-            else step.name
+            else step_name
         )
         links = []
         if has_prompt:
@@ -17007,7 +16997,7 @@ def _render_steps_rows(
             popups.append(
                 f'<div id="{step_id}-prompt" class="popup">'
                 f'<div class="popup-header">'
-                f'<strong>{step.name} — Prompt</strong>'
+                f'<strong>{step_name} — Prompt</strong>'
                 f'{_popup_toolbar(p_uid)}'
                 f'<a href="#" onclick="hidePopup(\'{step_id}-prompt\');return false">close</a>'
                 f'</div>'
@@ -17020,7 +17010,7 @@ def _render_steps_rows(
             popups.append(
                 f'<div id="{step_id}-output" class="popup">'
                 f'<div class="popup-header">'
-                f'<strong>{step.name} — Output</strong>'
+                f'<strong>{step_name} — Output</strong>'
                 f'{_popup_toolbar(o_uid)}'
                 f'<a href="#" onclick="hidePopup(\'{step_id}-output\');return false">close</a>'
                 f'</div>'
@@ -17033,7 +17023,7 @@ def _render_steps_rows(
             popups.append(
                 f'<div id="{step_id}-log" class="popup">'
                 f'<div class="popup-header">'
-                f'<strong>{step.name} — Log</strong>'
+                f'<strong>{step_name} — Log</strong>'
                 f'{_popup_toolbar(l_uid)}'
                 f'<a href="#" onclick="hidePopup(\'{step_id}-log\');return false">close</a>'
                 f'</div>'
@@ -17125,16 +17115,16 @@ def _render_fork_section(
     fork_toggle_id = f"{fork_group_id}-toggle"
     selected_note = ""
     if fork.selected_variant:
-        selected_note = f' <span class="variant-metrics">selected={fork.selected_variant}'
+        selected_note = f' <span class="variant-metrics">selected={_escape_html(fork.selected_variant)}'
         if fork.selector_rationale:
-            selected_note += f" | {fork.selector_rationale}"
+            selected_note += f" | {_escape_html(fork.selector_rationale)}"
         selected_note += "</span>"
 
     # --- Fork header ---
     rows.append(
         f'<tr class="fork-header is-collapsible" onclick="toggleGroup(\'{fork_group_id}\', \'{fork_toggle_id}\')"><td colspan="8">'
         f'<span class="fork-toggle is-open" id="{fork_toggle_id}" aria-hidden="true">▾</span>'
-        f'<strong>Fork {fork.fork_index}: {fork.fork_title}</strong>'
+        f'<strong>Fork {fork.fork_index}: {_escape_html(fork.fork_title)}</strong>'
         f'{selected_note}'
         f'</td></tr>'
     )
@@ -17160,7 +17150,7 @@ def _render_fork_section(
             f' | Output: {out_tok:,}'
             f' | {dur_str}'
             f' | ${cost:.2f}'
-            f' | <span class="{verdict_cls}">{verdict}</span>'
+            f' | <span class="{verdict_cls}">{_escape_html(verdict)}</span>'
             f'</span>'
             f'</td></tr>'
         )
@@ -17215,7 +17205,7 @@ def _render_fork_section(
         rows.append(
             f'<tr class="variant-header {variant_cls} is-collapsible" data-groups="{fork_group_id}" onclick="toggleGroup(\'{variant_group_id}\', \'{variant_toggle_id}\');event.stopPropagation()"><td colspan="8">'
             f'<span class="variant-toggle is-open" id="{variant_toggle_id}" aria-hidden="true">▾</span>'
-            f'<strong>{heading}</strong>'
+            f'<strong>{_escape_html(heading)}</strong>'
             f' <span class="variant-metrics">'
             f'{turns} turns'
             f' | Think: {tot_think:,}'
@@ -17224,7 +17214,7 @@ def _render_fork_section(
             f' | {dur_str}'
             f' | {tok_s:.0f} tok/s'
             f' | ${cost:.2f}'
-            f' | <span class="{verdict_cls}">{verdict}</span>'
+            f' | <span class="{verdict_cls}">{_escape_html(verdict)}</span>'
             f'</span>'
             f'</td></tr>'
         )
@@ -17284,7 +17274,7 @@ def render_html(
     nav_html = ""
     if document.nav_links:
         nav_html = '<div class="nav-links">' + " | ".join(
-            f'<a href="{_escape_html(href)}">{_escape_html(label)}</a>'
+            f'<a href="{_escape_html_attribute(href)}">{_escape_html(label)}</a>'
             for label, href in document.nav_links
         ) + '</div>'
 
@@ -17294,7 +17284,7 @@ def render_html(
             drilldown_html = ""
             if tl.drilldown_links:
                 links = " | ".join(
-                    f'<a href="{_escape_html(href)}">{_escape_html(label)}</a>'
+                    f'<a href="{_escape_html_attribute(href)}">{_escape_html(label)}</a>'
                     for label, href in tl.drilldown_links
                 )
                 drilldown_html = f' <span class="phase-links">{links}</span>'
@@ -17328,7 +17318,7 @@ def render_html(
 <html>
 <head>
 <meta charset="utf-8">
-<title>{run_title} — {workspace.name}</title>
+<title>{_escape_html(run_title)} — {_escape_html(workspace.name)}</title>
 <style>
   body {{ font-family: -apple-system, system-ui, sans-serif; margin: 2em; background: #fafafa; color: #333; }}
   h1 {{ font-size: 1.4em; }}
@@ -17666,8 +17656,8 @@ document.addEventListener('keydown', function(e) {{
 </script>
 </head>
 <body>
-<h1>{run_title}</h1>
-<h2>{workspace} — total {_fmt_duration(grand_total)} — ${grand_cost:.2f}</h2>
+<h1>{_escape_html(run_title)}</h1>
+<h2>{_escape_html(str(workspace))} — total {_fmt_duration(grand_total)} — ${grand_cost:.2f}</h2>
 {nav_html}
 <table>
 <thead>
@@ -18223,7 +18213,7 @@ def _render_agent_catalog_html(
         report = "available"
         if entry.run_id in report_hrefs:
             report = (
-                f'<a href="{_escape_html(report_hrefs[entry.run_id])}">open report</a>'
+                f'<a href="{_escape_html_attribute(report_hrefs[entry.run_id])}">open report</a>'
             )
         rows.append(
             "<tr>"
