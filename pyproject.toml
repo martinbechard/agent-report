@@ -31,7 +31,7 @@ include = ["agent_report*"]
     "scripts/run-timeline.py",
     "scripts/token_ledger.py",
     "tool-formatters.json",
-    "../../docs/reference/openai-model-pricing.json",
+    "docs/reference/openai-model-pricing.json",
 ]
 
 [tool.pytest.ini_options]

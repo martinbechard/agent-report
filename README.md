@@ -240,7 +240,7 @@ the required native engine:
 
 ```bash
 python -m pip install \
-  https://github.com/martinbechard/agent-report/releases/download/agent-report-cli-v1.1.5/agent_report_cli-1.1.5-py3-none-macosx_11_0_arm64.whl
+  ./agent_report_cli-1.1.5-py3-none-macosx_11_0_arm64.whl
 agent-report <path> --output report.html
 ```
 
