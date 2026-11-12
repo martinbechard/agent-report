@@ -38,20 +38,24 @@ Open **Sequence** from the thread events page. Read down the agent columns to fo
 
 ### Install the command
 
-You need Python 3.11 or newer and local Codex session logs for this example. Download the CLI wheel (the file ending in `.whl`) for Apple Silicon macOS, 64-bit Windows, or x64 Linux. [GitHub Releases](https://github.com/martinbechard/agent-report/releases)
+You need Python 3.11 or newer and local Codex session logs for this example. Run the command for your platform from any folder. Each command downloads and installs the matching wheel for CLI 1.1.8. For other versions, expand **Assets** on the release page to see the wheel filenames. [GitHub Releases](https://github.com/martinbechard/agent-report/releases)
 
-Open a terminal in the download folder. Replace `WHEEL_FILENAME.whl` with the name of the file you downloaded.
-
-**macOS or Linux**
+**Apple Silicon macOS**
 
 ```bash
-python3 -m pip install ./WHEEL_FILENAME.whl
+python3 -m pip install https://github.com/martinbechard/agent-report/releases/download/agent-report-cli-v1.1.8/agent_report_cli-1.1.8-py3-none-macosx_11_0_arm64.whl
 ```
 
-**Windows PowerShell**
+**64-bit Windows (PowerShell)**
 
 ```powershell
-py -m pip install .\WHEEL_FILENAME.whl
+py -m pip install https://github.com/martinbechard/agent-report/releases/download/agent-report-cli-v1.1.8/agent_report_cli-1.1.8-py3-none-win_amd64.whl
+```
+
+**x64 Linux**
+
+```bash
+python3 -m pip install https://github.com/martinbechard/agent-report/releases/download/agent-report-cli-v1.1.8/agent_report_cli-1.1.8-py3-none-linux_x86_64.whl
 ```
 
 Check the installation with `agent-report --help`. For the Windows installer, see the [CLI installation guide](cli/README.md#install). For a test build, download the wheel artifact from a successful manual run and extract the ZIP before installing. [GitHub Actions builds](https://github.com/martinbechard/agent-report/actions/workflows/release-agent-report.yml)
